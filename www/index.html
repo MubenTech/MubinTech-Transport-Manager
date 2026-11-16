@@ -1,0 +1,255 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#102c50">
+<title>MubinTech Transport Manager</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;font-family:Arial,sans-serif;background:#f2f5f9;color:#172b45}
+header{background:#102c50;color:white;padding:22px 18px}
+header h2{margin:0 0 6px}
+header p{margin:0;color:#c9d7e8;font-size:13px}
+main{padding:17px;max-width:650px;margin:auto}
+h3{margin-top:22px}
+.cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.card{background:white;padding:17px;border-radius:12px;box-shadow:0 2px 8px #0000000b}
+.card small{color:#65758a}
+.card strong{display:block;font-size:22px;margin-top:9px}
+nav{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:18px 0}
+button{border:0;border-radius:8px;padding:12px;background:#147d68;color:white;font-weight:bold;cursor:pointer}
+nav button{background:#dce6f0;color:#102c50}
+nav button.active{background:#102c50;color:white}
+.panel{display:none;background:white;padding:17px;border-radius:12px}
+.panel.active{display:block}
+input,select{width:100%;padding:12px;margin:7px 0 13px;border:1px solid #ccd5df;border-radius:7px;font-size:15px}
+label{font-size:13px;font-weight:bold}
+.submit{width:100%;background:#147d68}
+.item{padding:12px 0;border-bottom:1px solid #e5eaf0}
+.item strong{display:block}
+.muted{font-size:12px;color:#718096;margin-top:5px}
+.danger{background:#a93232;padding:7px;margin-top:7px}
+</style>
+</head>
+<body>
+<header>
+<h2>MubinTech</h2>
+<p>TRANSPORT MANAGEMENT SYSTEM</p>
+</header>
+
+<main>
+<h3>Business Dashboard</h3>
+<div class="cards">
+<div class="card"><small>Total Vehicles</small><strong id="vehicles">0</strong></div>
+<div class="card"><small>Registered Drivers</small><strong id="drivers">0</strong></div>
+<div class="card"><small>Total Remittances</small><strong id="income">₦0</strong></div>
+<div class="card"><small>Total Expenses</small><strong id="expenses">₦0</strong></div>
+</div>
+
+<div class="card" style="margin-top:12px">
+<small>Net Balance (recorded remittances less expenses)</small>
+<strong id="balance">₦0</strong>
+</div>
+
+<nav>
+<button class="active" onclick="show('fleet',this)">Fleet</button>
+<button onclick="show('driversPanel',this)">Drivers</button>
+<button onclick="show('payments',this)">Payments</button>
+<button onclick="show('costs',this)">Expenses</button>
+<button onclick="show('records',this)">Records</button>
+<button onclick="show('backup',this)">Backup</button>
+</nav>
+
+<section id="fleet" class="panel active">
+<h3>Register Keke</h3>
+<form id="vehicleForm">
+<label>Vehicle registration / ID</label>
+<input id="vehicleId" required placeholder="e.g. MUB-001">
+<label>Vehicle description</label>
+<input id="vehicleName" placeholder="e.g. Bajaj RE">
+<label>Assigned driver</label>
+<input id="vehicleDriver" placeholder="Driver name">
+<button class="submit">Add Vehicle</button>
+</form>
+<div id="vehicleList"></div>
+</section>
+
+<section id="driversPanel" class="panel">
+<h3>Register Driver</h3>
+<form id="driverForm">
+<label>Driver full name</label>
+<input id="driverName" required>
+<label>Phone number</label>
+<input id="driverPhone" placeholder="080...">
+<label>Assigned vehicle ID</label>
+<input id="driverVehicle">
+<button class="submit">Register Driver</button>
+</form>
+<div id="driverList"></div>
+</section>
+
+<section id="payments" class="panel">
+<h3>Record Daily Remittance</h3>
+<form id="paymentForm">
+<label>Vehicle ID</label>
+<input id="paymentVehicle" required placeholder="MUB-001">
+<label>Driver name</label>
+<input id="paymentDriver" required>
+<label>Amount (₦)</label>
+<input id="paymentAmount" type="number" min="1" required>
+<label>Date</label>
+<input id="paymentDate" type="date" required>
+<label>Payment status</label>
+<select id="paymentStatus">
+<option value="Pending">Pending confirmation</option>
+<option value="Confirmed">Confirmed</option>
+</select>
+<button class="submit">Save Remittance</button>
+</form>
+</section>
+
+<section id="costs" class="panel">
+<h3>Record Expenses</h3>
+<form id="expenseForm">
+<label>Expense description</label>
+<input id="expenseDescription" required placeholder="Fuel, repairs, etc.">
+<label>Vehicle ID</label>
+<input id="expenseVehicle" placeholder="MUB-001">
+<label>Amount (₦)</label>
+<input id="expenseAmount" type="number" min="1" required>
+<label>Date</label>
+<input id="expenseDate" type="date" required>
+<button class="submit">Save Expense</button>
+</form>
+</section>
+
+<section id="records" class="panel">
+<h3>Transaction History</h3>
+<div id="history"></div>
+</section>
+
+<section id="backup" class="panel">
+<h3>Data Backup</h3>
+<p class="muted">Export your business records regularly. Data is currently stored on this device.</p>
+<button class="submit" onclick="backup()">Download Backup</button>
+<br><br>
+<label>Restore a previous backup</label>
+<input type="file" id="restoreFile" accept=".json">
+<button class="submit" onclick="restore()">Restore Backup</button>
+</section>
+</main>
+
+<script>
+const load=(key)=>JSON.parse(localStorage.getItem(key)||"[]");
+const save=(key,data)=>localStorage.setItem(key,JSON.stringify(data));
+let vehicles=load("vehicles"),drivers=load("drivers"),
+payments=load("payments"),expenses=load("expenses");
+
+function show(id,btn){
+document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));
+document.getElementById(id).classList.add("active");
+btn.classList.add("active");
+}
+
+function money(n){return "₦"+Number(n).toLocaleString("en-NG")}
+
+function render(){
+document.getElementById("vehicles").textContent=vehicles.length;
+document.getElementById("drivers").textContent=drivers.length;
+let income=payments.filter(p=>p.status==="Confirmed").reduce((s,p)=>s+Number(p.amount),0);
+let cost=expenses.reduce((s,p)=>s+Number(p.amount),0);
+document.getElementById("income").textContent=money(income);
+document.getElementById("expenses").textContent=money(cost);
+document.getElementById("balance").textContent=money(income-cost);
+
+document.getElementById("vehicleList").innerHTML=vehicles.map(v=>
+`<div class="item"><strong>${safe(v.id)}</strong>${safe(v.name)}<div class="muted">Driver: ${safe(v.driver)}</div></div>`).join("");
+
+document.getElementById("driverList").innerHTML=drivers.map(d=>
+`<div class="item"><strong>${safe(d.name)}</strong>${safe(d.phone)}<div class="muted">Vehicle: ${safe(d.vehicle)}</div></div>`).join("");
+
+let all=[
+...payments.map(p=>({...p,type:"Remittance"})),
+...expenses.map(p=>({...p,type:"Expense"}))
+].sort((a,b)=>b.date.localeCompare(a.date));
+
+document.getElementById("history").innerHTML=all.map(p=>
+`<div class="item"><strong>${p.type}: ${money(p.amount)}</strong>${safe(p.vehicle||"")} · ${safe(p.date)}
+<div class="muted">${safe(p.driver||p.description||"")} · ${safe(p.status||"Recorded")}</div>
+${p.type==="Remittance"&&p.status!=="Confirmed"?`<button onclick="confirmPayment('${p.id}')">Confirm payment</button>`:""}
+</div>`).join("")||"No transactions recorded yet.";
+}
+
+function safe(value){
+return String(value||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+
+function add(form,key,getData){
+form.addEventListener("submit",e=>{
+e.preventDefault();
+const data=getData();
+data.id=Date.now().toString();
+const list=key==="vehicles"?vehicles:key==="drivers"?drivers:key==="payments"?payments:expenses;
+list.push(data);save(key,list);form.reset();render();
+alert("Record saved successfully.");
+});
+}
+
+add(document.getElementById("vehicleForm"),"vehicles",()=>({
+id:vehicleId.value.trim(),name:vehicleName.value.trim(),driver:vehicleDriver.value.trim()
+}));
+
+add(document.getElementById("driverForm"),"drivers",()=>({
+name:driverName.value.trim(),phone:driverPhone.value.trim(),vehicle:driverVehicle.value.trim()
+}));
+
+add(document.getElementById("paymentForm"),"payments",()=>({
+vehicle:paymentVehicle.value.trim(),driver:paymentDriver.value.trim(),
+amount:Number(paymentAmount.value),date:paymentDate.value,status:paymentStatus.value
+}));
+
+add(document.getElementById("expenseForm"),"expenses",()=>({
+description:expenseDescription.value.trim(),vehicle:expenseVehicle.value.trim(),
+amount:Number(expenseAmount.value),date:expenseDate.value
+}));
+
+function confirmPayment(id){
+let p=payments.find(x=>x.id===id);
+if(p&&confirm("Confirm receipt of this payment?")){
+p.status="Confirmed";save("payments",payments);render();
+}
+}
+
+function backup(){
+let data={vehicles,drivers,payments,expenses};
+let blob=new Blob([JSON.stringify(data,null,2)],{type:"application/json"});
+let a=document.createElement("a");
+a.href=URL.createObjectURL(blob);
+a.download="MubinTech-Transport-Backup.json";a.click();
+URL.revokeObjectURL(a.href);
+}
+
+function restore(){
+let file=document.getElementById("restoreFile").files[0];
+if(!file)return alert("Choose a backup file first.");
+if(!confirm("Restore backup? This will replace current records."))return;
+let reader=new FileReader();
+reader.onload=()=>{
+try{
+let d=JSON.parse(reader.result);
+vehicles=d.vehicles||[];drivers=d.drivers||[];
+payments=d.payments||[];expenses=d.expenses||[];
+["vehicles","drivers","payments","expenses"].forEach(k=>save(k,window[k]));
+render();alert("Backup restored.");
+}catch(e){alert("Invalid backup file.");}
+};
+reader.readAsText(file);
+}
+
+render();
+</script>
+</body>
+</html>
